@@ -28,8 +28,10 @@ jobs:
 
       - name: Install dependencies and package
         run: |
-          uv sync --all-extras
-          .venv/bin/pip install -e . jobspy
+          python -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install -r requirements.txt
+          .venv/bin/pip install -e .
 
       - name: Run ruff check
         run: |
