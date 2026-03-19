@@ -24,7 +24,6 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           enable-cache: true
-          enable-lockfile: false
 
       - name: Install build dependencies
         run: uv pip install build

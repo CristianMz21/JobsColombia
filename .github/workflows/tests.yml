@@ -28,7 +28,6 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           enable-cache: true
-          enable-lockfile: false
 
       - name: Install dependencies
         run: uv sync --all-extras
@@ -65,6 +64,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           enable-cache: true
+          cache-suffix: ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: uv sync --all-extras
