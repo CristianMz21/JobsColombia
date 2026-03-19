@@ -1,0 +1,89 @@
+# ==============================================================================
+# Python
+# ==============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+.env
+
+# PyCharm
+.idea/
+
+# VS Code
+.vscode/
+*.swp
+*.swo
+*~
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.hypothesis/
+
+# Ruff
+.ruff_cache/
+
+# MyPy
+.mypy_cache/
+*.mypy
+.dmypy.json
+dmypy.json
+
+# Data & Logs
+logs/
+data/*.csv
+*.csv
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Environment variables (sensitive!)
+.env
+.env.local
+*.env
+
+# uv
+uv.lock
+
+# ==============================================================================
+# Project Specific
+# ==============================================================================
+# Scraper output files (may contain sensitive URLs)
+output/
+exports/
+*.sqlite
+*.db
