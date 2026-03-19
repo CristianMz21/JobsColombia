@@ -35,17 +35,17 @@ jobs:
         run: uv pip install -e .
 
       - name: Run ruff check
-        run: ruff check .
+        run: uv run ruff check .
 
       - name: Run ruff format check
-        run: ruff format --check .
+        run: uv run ruff format --check .
 
       - name: Run ruff import sort
-        run: ruff check --select=I .
+        run: uv run ruff check --select=I .
 
       - name: Check for missing type hints
         run: |
-          ruff check . --select=ANN --ignore=ANN401 || true
+          uv run ruff check . --select=ANN --ignore=ANN401 || true
         continue-on-error: true
 
   commit-lint:
