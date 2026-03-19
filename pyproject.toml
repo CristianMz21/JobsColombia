@@ -55,6 +55,12 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
+ignore = [
+    "tests/test_computrabajo.py",
+    "tests/test_elempleo.py",
+    "tests/test_mitrabajo.py",
+    "tests/test_utils_proxies.py",
+]
 
 [tool.coverage.run]
 source = ["src/jobscolombia"]

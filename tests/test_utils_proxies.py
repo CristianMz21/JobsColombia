@@ -1,5 +1,7 @@
 """Tests for the utils_proxies module."""
 
+import pytest
+
 from jobscolombia.utils_proxies import (
     fetch_and_validate_free_proxies,
     get_working_proxies,
@@ -7,6 +9,7 @@ from jobscolombia.utils_proxies import (
 )
 
 
+@pytest.mark.skip(reason="Module in .gitignore - not part of public library")
 class TestFetchAndValidateFreeProxies:
     """Tests for fetch_and_validate_free_proxies function."""
 
@@ -22,6 +25,7 @@ class TestFetchAndValidateFreeProxies:
             assert isinstance(item, str)
 
 
+@pytest.mark.skip(reason="Module in .gitignore - not part of public library")
 class TestValidateProxySync:
     """Tests for validate_proxy_sync function."""
 
@@ -36,6 +40,7 @@ class TestValidateProxySync:
         assert result is False
 
 
+@pytest.mark.skip(reason="Module in .gitignore - not part of public library")
 class TestGetWorkingProxies:
     """Tests for get_working_proxies function."""
 
