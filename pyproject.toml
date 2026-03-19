@@ -4,6 +4,12 @@ version = "0.1.0"
 description = "Job scraping tool that collects listings from LinkedIn/Indeed, scores and ranks them"
 readme = "README.md"
 requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [
+    { name = "TechJobs Colombia" }
+]
+homepage = "https://github.com/CristianMz21/JobsColombia"
+repository = "https://github.com/CristianMz21/JobsColombia"
 dependencies = [
     "pandas",
     "jobspy",
@@ -18,6 +24,11 @@ dev = [
     "pytest",
     "pytest-cov",
 ]
+
+[project.urls]
+Homepage = "https://github.com/CristianMz21/JobsColombia"
+Repository = "https://github.com/CristianMz21/JobsColombia"
+Issues = "https://github.com/CristianMz21/JobsColombia/issues"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

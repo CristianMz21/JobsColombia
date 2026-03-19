@@ -132,6 +132,16 @@ This project is for educational purposes only. Make sure to comply with the Term
 
 MIT License - see the [LICENSE](LICENSE) file for details.
 
+## Acknowledgments
+
+This project was built using the following open source libraries:
+
+- **[JobSpy](https://github.com/zipme/Rq/tree/master)** - Multi-platform job posting aggregator for scraping LinkedIn and Indeed
+- **[Scrapling](https://github.com/DeSincere/scrapling)** - Undetectable web scraping framework with Cloudflare bypass support
+- **[Pandas](https://pandas.pydata.org/)** - Data analysis and manipulation tool
+- **[Ruff](https://docs.astral.sh/ruff/)** - Fast Python linter and formatter
+- **[Pytest](https://pytest.org/)** - Testing framework
+
 ## Contributions
 
 Contributions are welcome. Please open an issue or pull request to suggest changes or improvements.
