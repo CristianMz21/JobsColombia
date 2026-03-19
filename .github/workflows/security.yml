@@ -1,0 +1,95 @@
+name: Security
+
+on:
+  push:
+    branches: [main, master]
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly scan
+  workflow_dispatch:
+
+jobs:
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          enable-lockfile: false
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Install security tools
+        run: uv pip install safety pip-audit
+
+      - name: Run safety check
+        run: |
+          safety check --json | tee safety-report.json || true
+        continue-on-error: true
+
+      - name: Run pip-audit
+        run: |
+          pip-audit --format=json | tee pip-audit-report.json || true
+        continue-on-error: true
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: |
+            safety-report.json
+            pip-audit-report.json
+        continue-on-error: true
+
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+
+  code-scanning:
+    name: Code Scanning
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install bandit
+        run: pip install bandit
+
+      - name: Run bandit
+        run: |
+          bandit -r src/jobscolombia -f json -o bandit-report.json || true
+        continue-on-error: true
+
+      - name: Upload bandit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-report
+          path: bandit-report.json
+        continue-on-error: true

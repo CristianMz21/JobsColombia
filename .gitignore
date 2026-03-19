@@ -87,3 +87,9 @@ output/
 exports/
 *.sqlite
 *.db
+
+# Scraping implementation (private - depends on external scraper)
+# Add to .gitignore to keep implementation separate from core library
+src/jobscolombia/scraping.py
+src/jobscolombia/utils_proxies.py
+src/jobscolombia/scrapers/

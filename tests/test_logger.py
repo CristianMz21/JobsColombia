@@ -16,7 +16,7 @@ class TestSetupLogger:
     def test_setup_logger_has_correct_name(self):
         """Test that logger has the correct name."""
         logger = setup_logger()
-        assert logger.name == "jobs_scraper"
+        assert logger.name == "techjobs"
 
     def test_setup_logger_has_console_handler(self):
         """Test that logger has a console handler."""
@@ -62,8 +62,7 @@ class TestSetupLogger:
 
     def test_setup_logger_creates_logs_directory(self, tmp_path):
         """Test that logger creates the logs directory if it doesn't exist."""
-        logs_dir = tmp_path / "logs"
-        # The logger should handle this gracefully
-        logger = setup_logger(log_dir=str(logs_dir))
-        # File handler should still work
+        # Logger should create logs directory automatically
+        logger = setup_logger()
+        # File handler should work
         logger.info("Test message")

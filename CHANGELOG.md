@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-03-19
+
+### Changed
+- Refactored as a pure scoring/utility library (no scraping included)
+- Removed dependencies: jobspy, scrapling, nest_asyncio, requests
+- Minimum dependency: pandas only
+- Updated README to reflect library-only scope
+
+### Added
+- Comprehensive GitHub Actions workflows:
+  - Tests with coverage and type checking
+  - Lint with ruff and commit message validation
+  - Build and verify wheel/sdist
+  - Publish to PyPI
+  - Security audit (pip-audit, safety, bandit)
+- Dependabot configuration for automated dependency updates
+- SECURITY.md policy document
+
+### Removed
+- Web scraping functionality (moved to separate implementation)
+- Proxy utilities from core package
+
 ## [0.1.0] - 2026-03-19
 
 ### Added
@@ -21,7 +43,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive unit tests
 - GitHub Actions CI/CD (tests and linting)
 - Docker support
-- This CHANGELOG file
 
 ### Dependencies
 - Python 3.11+

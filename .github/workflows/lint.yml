@@ -8,12 +8,14 @@ on:
 
 jobs:
   lint:
-    name: Ruff Lint
+    name: Lint and Format Check
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -24,11 +26,12 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           enable-cache: true
+          enable-lockfile: false
 
       - name: Install dependencies
         run: uv sync --all-extras
 
-      - name: Install package in editable mode
+      - name: Install package
         run: uv pip install -e .
 
       - name: Run ruff check
@@ -38,4 +41,57 @@ jobs:
         run: ruff format --check .
 
       - name: Run ruff import sort
-        run: ruff check --select=I --fix .
+        run: ruff check --select=I .
+
+      - name: Check for missing type hints
+        run: |
+          ruff check . --select=ANN --ignore=ANN401 || true
+        continue-on-error: true
+
+  commit-lint:
+    name: Conventional Commits
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install commitizen
+        run: pip install commitizen
+
+      - name: Check commit message
+        run: |
+          # Get the PR title and body
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          echo "Checking PR title: $PR_TITLE"
+          
+          # Check if it follows conventional commits
+          cz check --message "$PR_TITLE" || echo "Warning: PR title doesn't follow conventional commits"
+        continue-on-error: true
+
+  no-binary:
+    name: Check for binary files
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for binary files
+        run: |
+          # Check if there are any binary files committed
+          binary_files=$(git ls-files --others --exclude-standard | grep -E '\.(png|jpg|jpeg|gif|ico|bin|exe|dll|so|dylib)$' || true)
+          if [ -n "$binary_files" ]; then
+            echo "Found binary files:"
+            echo "$binary_files"
+            exit 1
+          fi
+          echo "No binary files found"

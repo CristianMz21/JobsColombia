@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "jobscolombia"
-version = "0.1.0"
-description = "Professional web scraper for tech job listings in Colombia"
+version = "0.2.0"
+description = "Tech job scoring and utilities for Colombia"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
@@ -14,23 +14,19 @@ authors = [
 ]
 homepage = "https://github.com/CristianMz21/JobsColombia"
 repository = "https://github.com/CristianMz21/JobsColombia"
-keywords = ["web-scraping", "jobs", "colombia", "linkedin", "indeed", "job-search"]
+keywords = ["jobs", "colombia", "scoring", "tech", "career"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
-    "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
+    "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
     "pandas",
-    "jobspy",
-    "nest_asyncio",
-    "requests",
-    "scrapling[fetchers]>=0.4.0",
 ]
 
 [project.optional-dependencies]
@@ -38,6 +34,9 @@ dev = [
     "ruff",
     "pytest",
     "pytest-cov",
+    "mypy",
+    "bandit",
+    "safety",
 ]
 
 [project.urls]

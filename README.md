@@ -1,6 +1,6 @@
-# TechJobs Colombia
+# JobsColombia
 
-> Professional web scraper for tech job listings in Colombia.
+> Tech job scoring and utilities for Colombia.
 
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -9,86 +9,95 @@
 
 ## Description
 
-Scraping tool to extract and analyze tech job listings in Colombia from multiple job portals:
+JobsColombia is a Python library that provides scoring, classification, and utility functions for tech job listings in Colombia.
 
-- LinkedIn
-- Indeed
-- elempleo.com
-- computrabajo.com
-- mitrabajo.co
+This library helps you:
+- Score job listings based on relevance (technologies, keywords, modality)
+- Classify jobs by score ranges
+- Identify primary tech stacks from job descriptions
+- Export and format job data to CSV
 
-## Features
-
-- Multi-portal tech job extraction
-- Scoring and classification system for job relevance
-- Outsourcing company filtering (BairesDev, Turing, Crossover, etc.)
-- Job deduplication
-- Dynamic proxy support
-- Anti-detection protection (Cloudflare bypass, User-Agent rotation)
-- Professional logging
-- CSV export
-
-## Requirements
-
-- Python 3.11+
-- uv (package manager)
+**Note:** This package does NOT include web scraping. Use any scraper library (like `jobs_scraper`, `linkedin-scraper`, or custom solutions) to fetch job data, then use this library to analyze and score them.
 
 ## Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/CristianMz21/JobsColombia.git
-cd JobsColombia
+pip install jobscolombia
+```
 
-# Install dependencies with uv
-uv sync
+Or with uv:
 
-# Optional: Install dev dependencies
-uv sync --dev
+```bash
+uv add jobscolombia
 ```
 
 ## Usage
 
-```bash
-# Run the scraper
-python main.py
+```python
+import pandas as pd
+from jobscolombia import calcular_score, clasificar_score
+
+# Score a job listing
+score = calcular_score(
+    title="Senior Python Developer",
+    description="We need a Python developer with Django, PostgreSQL, and AWS experience",
+    location="Bogota, Colombia",
+    company="Tech Corp"
+)
+# score = 85 (example)
+
+# Classify the score
+category = clasificar_score(score)
+# category = "Excelente" (score >= 70)
+
+# Score a DataFrame of jobs
+df["score"] = df.apply(
+    lambda r: calcular_score(
+        str(r.get("title", "")),
+        str(r.get("description", "")),
+        str(r.get("location", "")),
+    ),
+    axis=1,
+)
 ```
 
-The script will extract job listings and save them to a timestamped CSV file.
+## API Reference
 
-## Configuration
+### Scoring
 
-Configuration is located in `src/config.py`:
+- `calcular_score(title, description, location, company)` - Calculate job relevance score (0-100)
+- `clasificar_score(score)` - Classify score into category (Bajo, Regular, Bueno, Excelente)
+- `identificar_stack_principal(text)` - Identify main tech stack from text
 
-- **Search terms**: Keywords for job search
-- **Scoring weights**: Weights for technologies, modality, experience
-- **Anti-detection settings**: Delay between requests, timeouts, retries
-- **Company blacklist**: Outsourcing companies to exclude
+### Utilities
+
+- `columnas_export()` - Get standard column names for CSV export
+- `generar_nombre_csv(prefix)` - Generate timestamped CSV filename
+- `formatear_fecha(date)` - Format date for export
+
+### Logging
+
+- `setup_logger(name, log_dir)` - Configure logger for the application
+
+See source code for full documentation.
 
 ## Project Structure
 
 ```
-JobsColombia/
-├── main.py                 # Entry point
-├── src/
-│   ├── __init__.py
-│   ├── config.py           # Centralized configuration
-│   ├── logger.py           # Logging setup
-│   ├── scoring.py          # Scoring system
-│   ├── scraping.py         # Scraping functions
-│   ├── utils.py            # Utilities
-│   ├── utils_proxies.py    # Proxy management
-│   └── scrapers/          # Portal spiders
-│       ├── base.py
-│       ├── computrabajo.py
-│       └── elempleo.py
-├── tests/                  # Unit tests
-├── pyproject.toml         # Project configuration
-├── ruff.toml              # Linting configuration
+jobscolombia/
+├── src/jobscolombia/
+│   ├── __init__.py         # Package exports
+│   ├── scoring.py         # Scoring and classification
+│   ├── utils.py           # Utilities (CSV, dates)
+│   ├── logger.py          # Logging setup
+│   └── config.py          # Configuration
+├── tests/                 # Unit tests
+├── pyproject.toml        # Project configuration
+├── CHANGELOG.md          # Version history
+├── CONTRIBUTING.md       # Contribution guidelines
+├── SECURITY.md           # Security policy
 └── .github/
     └── workflows/         # GitHub Actions
-        ├── tests.yml
-        └── lint.yml
 ```
 
 ## Testing
@@ -98,7 +107,7 @@ JobsColombia/
 pytest
 
 # Run with coverage
-pytest --cov=src --cov-report=term-missing
+pytest --cov=src/jobscolombia --cov-report=term-missing
 ```
 
 ## Linting
@@ -109,24 +118,30 @@ ruff check .
 
 # Format code
 ruff format .
+```
 
-# Auto-fix issues
-ruff check --fix .
+## Type Checking
+
+```bash
+# Run mypy
+mypy src/jobscolombia --ignore-missing-imports
+```
+
+## Security
+
+```bash
+# Run security audit
+safety check
+pip-audit
+bandit -r src/jobscolombia
 ```
 
 ## Tech Stack
 
 - **Python 3.11+** - Main language
-- **Scrapling** - Web scraping framework
 - **Pandas** - Data manipulation
-- **JobSpy** - LinkedIn/Indeed scraping
-- **Requests** - HTTP client
 - **Ruff** - Linting and formatting
 - **Pytest** - Testing framework
-
-## Disclaimer
-
-This project is for educational purposes only. Make sure to comply with the Terms of Service of the job portals before using this scraper.
 
 ## License
 
@@ -134,14 +149,10 @@ MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
-This project was built using the following open source libraries:
-
-- **[JobSpy](https://github.com/zipme/Rq/tree/master)** - Multi-platform job posting aggregator for scraping LinkedIn and Indeed
-- **[Scrapling](https://github.com/DeSincere/scrapling)** - Undetectable web scraping framework with Cloudflare bypass support
 - **[Pandas](https://pandas.pydata.org/)** - Data analysis and manipulation tool
 - **[Ruff](https://docs.astral.sh/ruff/)** - Fast Python linter and formatter
 - **[Pytest](https://pytest.org/)** - Testing framework
 
-## Contributions
+## Contributing
 
-Contributions are welcome. Please open an issue or pull request to suggest changes or improvements.
+Contributions are welcome! Please read our [CONTRIBUTING.md](CONTRIBUTING.md) file for guidelines.

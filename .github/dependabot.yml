@@ -1,0 +1,63 @@
+version: 2
+
+updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/Bogota"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "pip"
+    reviewers:
+      - "CristianMz21"
+    groups:
+      minor-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+        exclude-patterns:
+          - "pytest"
+          - "ruff"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/Bogota"
+    commit-message:
+      prefix: "ci"
+    labels:
+      - "ci"
+      - "github-actions"
+    groups:
+      workflow-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "pip"
+    directory: "/"
+    package-names:
+      - "pytest"
+      - "pytest-cov"
+      - "ruff"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "dev-deps"
+    labels:
+      - "dependencies"
+      - "dev"
