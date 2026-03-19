@@ -1,15 +1,15 @@
 # TechJobs Colombia
 
-> Web scraper profesional para ofertas de empleo tech en Colombia.
+> Professional web scraper for tech job listings in Colombia.
 
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Tests](https://github.com/CristianMz21/JobsColombia/actions/workflows/tests.yml/badge.svg)](https://github.com/CristianMz21/JobsColombia/actions/workflows/tests.yml)
 [![Lint](https://github.com/CristianMz21/JobsColombia/actions/workflows/lint.yml/badge.svg)](https://github.com/CristianMz21/JobsColombia/actions/workflows/lint.yml)
 
-## Descripcion
+## Description
 
-Herramienta de scraping para extraer y analizar ofertas de empleo de tecnologia en Colombia desde multiples portales:
+Scraping tool to extract and analyze tech job listings in Colombia from multiple job portals:
 
 - LinkedIn
 - Indeed
@@ -17,74 +17,74 @@ Herramienta de scraping para extraer y analizar ofertas de empleo de tecnologia 
 - computrabajo.com
 - mitrabajo.co
 
-## Caracteristicas
+## Features
 
-- Extraccion multi-portal de ofertas de empleo tech
-- Sistema de scoring y clasificacion de relevancia
-- Filtrado de empresas de outsourcing (BairesDev, Turing, Crossover, etc.)
-- Deduplicacion de ofertas
-- Soporte para proxies dinamicos
-- Proteccion anti-deteccion (Cloudflare bypass, User-Agent rotation)
-- Logging profesional
-- Exportacion a CSV
+- Multi-portal tech job extraction
+- Scoring and classification system for job relevance
+- Outsourcing company filtering (BairesDev, Turing, Crossover, etc.)
+- Job deduplication
+- Dynamic proxy support
+- Anti-detection protection (Cloudflare bypass, User-Agent rotation)
+- Professional logging
+- CSV export
 
-## Requisitos
+## Requirements
 
 - Python 3.11+
-- uv (gestor de paquetes)
+- uv (package manager)
 
-## Instalacion
+## Installation
 
 ```bash
-# Clonar el repositorio
+# Clone the repository
 git clone https://github.com/CristianMz21/JobsColombia.git
 cd JobsColombia
 
-# Instalar dependencias con uv
+# Install dependencies with uv
 uv sync
 
-# Opcional: Instalar dependencias de desarrollo
+# Optional: Install dev dependencies
 uv sync --dev
 ```
 
-## Uso
+## Usage
 
 ```bash
-# Ejecutar el scraper
+# Run the scraper
 python main.py
 ```
 
-El script extraera ofertas de empleo y las guardara en un archivo CSV con marcas de tiempo.
+The script will extract job listings and save them to a timestamped CSV file.
 
-## Configuracion
+## Configuration
 
-La configuracion se encuentra en `src/config.py`:
+Configuration is located in `src/config.py`:
 
-- **Terminos de busqueda**: Palabras clave para la busqueda de empleo
-- **Ponderaciones de scoring**: Pesos para tecnologias, modalidad, experiencia
-- **Configuracion anti-deteccion**: Delay entre requests, timeouts, reintentos
-- **Blacklist de empresas**: Empresas de outsourcing a excluir
+- **Search terms**: Keywords for job search
+- **Scoring weights**: Weights for technologies, modality, experience
+- **Anti-detection settings**: Delay between requests, timeouts, retries
+- **Company blacklist**: Outsourcing companies to exclude
 
-## Estructura del Proyecto
+## Project Structure
 
 ```
 JobsColombia/
-├── main.py                 # Punto de entrada
+├── main.py                 # Entry point
 ├── src/
 │   ├── __init__.py
-│   ├── config.py           # Configuracion centralizada
-│   ├── logger.py           # Configuracion de logging
-│   ├── scoring.py          # Sistema de scoring
-│   ├── scraping.py         # Funciones de scraping
-│   ├── utils.py           # Utilidades
-│   ├── utils_proxies.py    # Gestion de proxies
-│   └── scrapers/          # Spiders para portales
+│   ├── config.py           # Centralized configuration
+│   ├── logger.py           # Logging setup
+│   ├── scoring.py          # Scoring system
+│   ├── scraping.py         # Scraping functions
+│   ├── utils.py            # Utilities
+│   ├── utils_proxies.py    # Proxy management
+│   └── scrapers/          # Portal spiders
 │       ├── base.py
 │       ├── computrabajo.py
 │       └── elempleo.py
-├── tests/                  # Pruebas unitarias
-├── pyproject.toml         # Configuracion del proyecto
-├── ruff.toml              # Configuracion de linting
+├── tests/                  # Unit tests
+├── pyproject.toml         # Project configuration
+├── ruff.toml              # Linting configuration
 └── .github/
     └── workflows/         # GitHub Actions
         ├── tests.yml
@@ -94,44 +94,44 @@ JobsColombia/
 ## Testing
 
 ```bash
-# Ejecutar todos los tests
+# Run all tests
 pytest
 
-# Ejecutar con coverage
+# Run with coverage
 pytest --cov=src --cov-report=term-missing
 ```
 
 ## Linting
 
 ```bash
-# Verificar codigo
+# Check code
 ruff check .
 
-# Formatear codigo
+# Format code
 ruff format .
 
-# Auto-corregir problemas
+# Auto-fix issues
 ruff check --fix .
 ```
 
 ## Tech Stack
 
-- **Python 3.11+** - Lenguaje principal
-- **Scrapling** - Framework de web scraping
-- **Pandas** - Manipulacion de datos
-- **JobSpy** - Scraping de LinkedIn/Indeed
+- **Python 3.11+** - Main language
+- **Scrapling** - Web scraping framework
+- **Pandas** - Data manipulation
+- **JobSpy** - LinkedIn/Indeed scraping
 - **Requests** - HTTP client
-- **Ruff** - Linting y formateo
+- **Ruff** - Linting and formatting
 - **Pytest** - Testing framework
 
 ## Disclaimer
 
-Este proyecto es solo para fines educativos. Asegurate de cumplir con los Terminos de Servicio de los portales web antes de usar este scraper.
+This project is for educational purposes only. Make sure to comply with the Terms of Service of the job portals before using this scraper.
 
-## Licencia
+## License
 
-MIT License - consulta el archivo [LICENSE](LICENSE) para mas detalles.
+MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Contribuciones
+## Contributions
 
-Las contribuciones son bienvenidas. Por favor, abre un issue o pull request para sugerir cambios o mejoras.
+Contributions are welcome. Please open an issue or pull request to suggest changes or improvements.
