@@ -14,9 +14,9 @@ from typing import Any
 
 from scrapling.spiders import Response
 
-from src.config import SEARCH_TERMS
-from src.scoring import calcular_score, clasificar_score, identificar_stack_principal
-from src.scrapers.base import BaseJobSpider
+from jobscolombia.config import SEARCH_TERMS
+from jobscolombia.scoring import calcular_score, clasificar_score, identificar_stack_principal
+from jobscolombia.scrapers.base import BaseJobSpider
 
 
 class MiTrabajoSpider(BaseJobSpider):

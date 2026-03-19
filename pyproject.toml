@@ -1,15 +1,30 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
-name = "jobs"
+name = "jobscolombia"
 version = "0.1.0"
-description = "Job scraping tool that collects listings from LinkedIn/Indeed, scores and ranks them"
+description = "Professional web scraper for tech job listings in Colombia"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [
-    { name = "TechJobs Colombia" }
+    { name = "TechJobs Colombia", email = "contact@jobscolombia.com" }
 ]
 homepage = "https://github.com/CristianMz21/JobsColombia"
 repository = "https://github.com/CristianMz21/JobsColombia"
+keywords = ["web-scraping", "jobs", "colombia", "linkedin", "indeed", "job-search"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
+]
 dependencies = [
     "pandas",
     "jobspy",
@@ -30,6 +45,12 @@ Homepage = "https://github.com/CristianMz21/JobsColombia"
 Repository = "https://github.com/CristianMz21/JobsColombia"
 Issues = "https://github.com/CristianMz21/JobsColombia/issues"
 
+[tool.hatchling.build.targets.wheel]
+packages = ["src.jobscolombia"]
+
+[tool.hatchling.build.targets.sdist]
+include = ["src/jobscolombia"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
@@ -37,7 +58,7 @@ python_functions = ["test_*"]
 addopts = "-v --tb=short"
 
 [tool.coverage.run]
-source = ["src"]
+source = ["src/jobscolombia"]
 branch = true
 
 [tool.coverage.report]
@@ -68,4 +89,4 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["src"]
+known-first-party = ["src.jobscolombia"]

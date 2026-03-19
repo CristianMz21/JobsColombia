@@ -4,8 +4,8 @@ import nest_asyncio
 import pandas as pd
 from jobspy import scrape_jobs
 
-from src.config import SEARCH_TERMS
-from src.scoring import calcular_score, clasificar_score, identificar_stack_principal
+from jobscolombia.config import SEARCH_TERMS
+from jobscolombia.scoring import calcular_score, clasificar_score, identificar_stack_principal
 
 nest_asyncio.apply()
 

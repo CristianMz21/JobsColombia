@@ -3,7 +3,7 @@ from datetime import datetime
 
 import requests
 
-from src.config import USER_AGENTS
+from jobscolombia.config import USER_AGENTS
 
 
 def _make_session() -> requests.Session:

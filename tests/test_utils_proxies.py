@@ -1,6 +1,6 @@
 """Tests for the utils_proxies module."""
 
-from src.utils_proxies import (
+from jobscolombia.utils_proxies import (
     fetch_and_validate_free_proxies,
     get_working_proxies,
     validate_proxy_sync,

@@ -187,7 +187,7 @@ class MockSpider:
             return ""
 
     def _extract_search_term(self, url: str) -> None:
-        from src.config import SEARCH_TERMS
+        from jobscolombia.config import SEARCH_TERMS
 
         try:
             url_lower = url.lower()
@@ -202,7 +202,11 @@ class MockSpider:
             self.search_term = "General"
 
     def _parse_job_card(self, card, page_url: str):
-        from src.scoring import calcular_score, clasificar_score, identificar_stack_principal
+        from jobscolombia.scoring import (
+            calcular_score,
+            clasificar_score,
+            identificar_stack_principal,
+        )
 
         try:
             title = self._safe_extract(card, "h2 a::text, h3 a::text, .job-title::text")

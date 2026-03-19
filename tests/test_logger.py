@@ -2,7 +2,7 @@
 
 import logging
 
-from src.logger import setup_logger
+from jobscolombia.logger import setup_logger
 
 
 class TestSetupLogger:

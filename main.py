@@ -18,15 +18,15 @@ import nest_asyncio
 import pandas as pd
 from jobspy import scrape_jobs
 
-from src.config import CSV_COLUMNS, EXPORT_ENCODING, SEARCH_TERMS
-from src.logger import logger
-from src.scoring import (
+from jobscolombia.config import CSV_COLUMNS, EXPORT_ENCODING, SEARCH_TERMS
+from jobscolombia.logger import logger
+from jobscolombia.scoring import (
     calcular_score,
     clasificar_score,
     extract_technologies,
     identificar_stack_principal,
 )
-from src.utils import generar_nombre_csv
+from jobscolombia.utils import generar_nombre_csv
 
 nest_asyncio.apply()
 
@@ -140,9 +140,9 @@ def scrape_all_jobs_async(max_pages: int = 3) -> pd.DataFrame | None:
     Returns:
         Combined DataFrame with all jobs, or None if no results.
     """
-    from src.scrapers.computrabajo import ComputrabajoSpider
-    from src.scrapers.elempleo import ElEmpleoSpider
-    from src.scrapers.mitrabajo import MiTrabajoSpider
+    from jobscolombia.scrapers.computrabajo import ComputrabajoSpider
+    from jobscolombia.scrapers.elempleo import ElEmpleoSpider
+    from jobscolombia.scrapers.mitrabajo import MiTrabajoSpider
 
     logger.info("=" * 60)
     logger.info("INICIANDO WEB SCRAPING MULTI-PORTAL")

@@ -12,7 +12,7 @@ This module provides the logic for calculating job relevance scores based on:
 import re
 from typing import Final
 
-from src.config import BLACKLIST_COMPANIES, SCORING_CONFIG
+from jobscolombia.config import BLACKLIST_COMPANIES, SCORING_CONFIG
 
 TECHNOLOGIES: Final[list[tuple[str, re.Pattern[str]]]] = [
     (tech, re.compile(rf"\b{re.escape(tech)}\b", re.IGNORECASE))

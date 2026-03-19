@@ -27,7 +27,7 @@ from scrapling.spiders import (
     Spider,
 )
 
-from src.config import ANTIDETECTION_CONFIG, PROXIES
+from jobscolombia.config import ANTIDETECTION_CONFIG, PROXIES
 
 
 class ProxyRotator:

@@ -1,4 +1,4 @@
-from src.scoring import calcular_score, clasificar_score, identificar_stack_principal
+from jobscolombia.scoring import calcular_score, clasificar_score, identificar_stack_principal
 
 
 class TestCalcularScore:

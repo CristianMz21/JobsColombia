@@ -8,10 +8,10 @@ This module contains all spider implementations for scraping job portals:
 - MiTrabajoSpider: Spider for mitrabajo.co
 """
 
-from src.scrapers.base import BaseJobSpider
-from src.scrapers.computrabajo import ComputrabajoSpider
-from src.scrapers.elempleo import ElEmpleoSpider
-from src.scrapers.mitrabajo import MiTrabajoSpider
+from jobscolombia.scrapers.base import BaseJobSpider
+from jobscolombia.scrapers.computrabajo import ComputrabajoSpider
+from jobscolombia.scrapers.elempleo import ElEmpleoSpider
+from jobscolombia.scrapers.mitrabajo import MiTrabajoSpider
 
 __all__ = [
     "BaseJobSpider",

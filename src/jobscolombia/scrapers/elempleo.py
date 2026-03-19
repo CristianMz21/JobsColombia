@@ -12,14 +12,14 @@ from typing import Any
 
 from scrapling.spiders import Response
 
-from src.config import SEARCH_TERMS
-from src.scoring import (
+from jobscolombia.config import SEARCH_TERMS
+from jobscolombia.scoring import (
     calcular_score,
     clasificar_score,
     extract_technologies,
     identificar_stack_principal,
 )
-from src.scrapers.base import BaseJobSpider
+from jobscolombia.scrapers.base import BaseJobSpider
 
 
 class ElEmpleoSpider(BaseJobSpider):

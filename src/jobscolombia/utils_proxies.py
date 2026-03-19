@@ -14,7 +14,7 @@ import re
 
 import requests
 
-from src.logger import logger
+from jobscolombia.logger import logger
 
 PROXY_TEST_URL = "https://httpbin.org/ip"
 VALIDATION_TIMEOUT = 5

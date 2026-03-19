@@ -1,4 +1,4 @@
-from src.utils import columnas_export, generar_nombre_csv
+from jobscolombia.utils import columnas_export, generar_nombre_csv
 
 
 class TestGenerarNombreCsv:
