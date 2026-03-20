@@ -6,8 +6,6 @@ on:
   pull_request:
     branches: [main, master]
 
-env:
-
 jobs:
   test:
     name: Test with Python ${{ matrix.python-version }}

@@ -7,8 +7,6 @@ on:
     - cron: '0 0 * * 0'  # Weekly scan
   workflow_dispatch:
 
-env:
-
 jobs:
   security-audit:
     name: Security Audit

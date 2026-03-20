@@ -6,8 +6,6 @@ on:
   pull_request:
     branches: [main, master]
 
-env:
-
 jobs:
   build-wheel:
     name: Build wheel and sdist
