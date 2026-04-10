@@ -10,7 +10,7 @@ This module provides the logic for calculating job relevance scores based on:
 """
 
 import re
-from typing import Final
+from typing import Any, Final
 
 from jobscolombia.config import BLACKLIST_COMPANIES, SCORING_CONFIG
 
@@ -350,7 +350,7 @@ def calcular_score_detallado(
     titulo: str,
     descripcion: str = "",
     ubicacion: str = "",
-) -> dict:
+) -> dict[str, Any]:
     """Calculate detailed score breakdown for debugging and analysis.
 
     This function provides a detailed breakdown of the score calculation,

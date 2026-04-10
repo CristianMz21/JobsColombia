@@ -105,7 +105,7 @@ class BaseJobSpider(Spider, ABC):
 
     # Spider metadata - override in subclasses
     name: str = "base_job_spider"
-    allowed_domains: list[str] = []
+    allowed_domains: set[str] = set()
     start_urls: list[str] = []
 
     # Concurrency settings
@@ -139,7 +139,7 @@ class BaseJobSpider(Spider, ABC):
         """
         proxy = self._proxy_rotator.get_proxy()
 
-        stealth_config = {
+        stealth_config: dict[str, bool | int | str | None] = {
             "headless": self.config.headless,
             "block_webrtc": self.config.block_webrtc,
             "hide_canvas": self.config.hide_canvas,
@@ -157,7 +157,7 @@ class BaseJobSpider(Spider, ABC):
 
         manager.add(
             "stealth",
-            AsyncStealthySession(**stealth_config),
+            AsyncStealthySession(**stealth_config),  # type: ignore[arg-type]
             lazy=True,
         )
 
