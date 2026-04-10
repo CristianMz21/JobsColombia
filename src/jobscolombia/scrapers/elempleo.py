@@ -7,7 +7,7 @@ job listings from elempleo.com, Colombia's leading job portal.
 Website: https://www.elempleo.com
 """
 
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
 from typing import Any
 
 from scrapling.spiders import Response
@@ -45,7 +45,7 @@ class ElEmpleoSpider(BaseJobSpider):
     """
 
     name = "elempleo"
-    allowed_domains = ["elempleo.com", "www.elempleo.com"]
+    allowed_domains = {"elempleo.com", "www.elempleo.com"}
 
     # Generate start URLs for each search term
     start_urls = [
@@ -88,7 +88,7 @@ class ElEmpleoSpider(BaseJobSpider):
         self.scraped_count = 0
         self.search_term = ""
 
-    async def parse(self, response: Response) -> Iterator[dict[str, Any]]:
+    async def parse(self, response: Response) -> AsyncIterator[Any]:  # type: ignore[override]
         """Parse job listings from elempleo.com response.
 
         This method ONLY collects job detail URLs and handles pagination.
@@ -126,12 +126,13 @@ class ElEmpleoSpider(BaseJobSpider):
                     if not job_url:
                         continue
 
-                    if job_url and not job_url.startswith("http"):
-                        job_url = f"https://www.elempleo.com{job_url}"
+                    job_url = self._validate_url(job_url)
+                    if not job_url:
+                        continue
 
                     from scrapling.spiders import Request
 
-                    yield Request(job_url, callback=self.parse_detail, sid="stealth")
+                    yield Request(job_url, callback=self.parse_detail, sid="stealth")  # type: ignore[arg-type]
 
                 except Exception as e:
                     self.logger.error(f"Error extracting job URL: {e}")
@@ -143,7 +144,7 @@ class ElEmpleoSpider(BaseJobSpider):
         except Exception as e:
             self.logger.error(f"Error parsing response: {e}")
 
-    async def parse_detail(self, response: Response) -> Iterator[dict[str, Any]]:
+    async def parse_detail(self, response: Response) -> AsyncIterator[dict[str, Any]]:
         """Extract full job details from detail page.
 
         This method navigates to each job's detail page and extracts:
@@ -159,62 +160,84 @@ class ElEmpleoSpider(BaseJobSpider):
 
         try:
             title = self._safe_extract_detail(response, "h1::text, h2::text, .title::text")
-            company = self._safe_extract_detail(response, ".company::text, .employer::text")
-            location = self._safe_extract_detail(response, ".location::text, .place::text")
-            salary = self._safe_extract_detail(response, ".salary::text, .wage::text")
-            date_posted = self._safe_extract_detail(response, ".date::text, .posted::text")
-
-            full_description = ""
-            desc_selectors = [
-                ".description::text",
-                ".job-details::text",
-                "[class*='descripcion']::text",
-                ".fc_mainText::text",
-                ".sc-jKJlTe::text",
-            ]
-            for selector in desc_selectors:
-                desc_text = response.css(selector).get("")
-                if desc_text:
-                    full_description += desc_text + " "
-
-            full_description = self._clean_text(full_description.strip())
-
             if not title:
                 return
 
-            score = calcular_score(
-                titulo=title,
-                descripcion=full_description,
-                ubicacion=location or "",
-                empresa=company or "",
-            )
-
-            detected_techs = extract_technologies(full_description)
-
-            job = {
-                "site": "elempleo",
-                "title": self._clean_text(title),
-                "company": self._clean_text(company) if company else "No especificado",
-                "location": self._normalize_location(location or "", full_description),
-                "salary": self._clean_text(salary) if salary else "",
-                "date_posted": self._clean_text(date_posted) if date_posted else "",
-                "job_url": response.url,
-                "score": score,
-                "clasificacion": clasificar_score(score),
-                "stack_principal": identificar_stack_principal(title + " " + full_description),
-                "search_term": self.search_term,
-                "description": "",
-                "full_description": full_description,
-                "detected_technologies": ", ".join(detected_techs),
-            }
-
-            if score > 0:
+            job_data = self._extract_job_fields(response, title)
+            if job_data["score"] > 0:
                 self.scraped_count += 1
-                self.logger.debug(f"Job '{title}' scored {score}")
-                yield job
+                self.logger.debug(f"Job '{title}' scored {job_data['score']}")
+                yield job_data
 
         except Exception as e:
             self.logger.error(f"Error parsing detail page: {e}")
+
+    def _extract_job_fields(
+        self, response: Response, title: str
+    ) -> dict[str, Any]:
+        """Extract all job fields from detail page.
+
+        Args:
+            response: Response object from job detail page.
+            title: Already extracted job title.
+
+        Returns:
+            Dictionary with all job fields including score.
+        """
+        company = self._safe_extract_detail(response, ".company::text, .employer::text")
+        location = self._safe_extract_detail(response, ".location::text, .place::text")
+        salary = self._safe_extract_detail(response, ".salary::text, .wage::text")
+        date_posted = self._safe_extract_detail(response, ".date::text, .posted::text")
+        full_description = self._extract_description(response)
+
+        score = calcular_score(
+            titulo=title,
+            descripcion=full_description,
+            ubicacion=location or "",
+            empresa=company or "",
+        )
+        detected_techs = extract_technologies(full_description)
+
+        return {
+            "site": "elempleo",
+            "title": self._clean_text(title),
+            "company": self._clean_text(company) if company else "No especificado",
+            "location": self._normalize_location(location or "", full_description),
+            "salary": self._clean_text(salary) if salary else "",
+            "date_posted": self._clean_text(date_posted) if date_posted else "",
+            "job_url": response.url,
+            "score": score,
+            "clasificacion": clasificar_score(score),
+            "stack_principal": identificar_stack_principal(title + " " + full_description),
+            "search_term": self.search_term,
+            "description": "",
+            "full_description": full_description,
+            "detected_technologies": ", ".join(detected_techs),
+        }
+
+    def _extract_description(self, response: Response) -> str:
+        """Extract full description from job detail page.
+
+        Args:
+            response: Response object from job detail page.
+
+        Returns:
+            Cleaned full description text.
+        """
+        desc_parts: list[str] = []
+        desc_selectors = [
+            ".description::text",
+            ".job-details::text",
+            "[class*='descripcion']::text",
+            ".fc_mainText::text",
+            ".sc-jKJlTe::text",
+        ]
+        for selector in desc_selectors:
+            desc_text = response.css(selector).get("")
+            if desc_text:
+                desc_parts.append(desc_text)
+
+        return self._clean_text(" ".join(desc_parts))
 
     def _safe_extract_detail(self, response: Response, selector: str) -> str:
         """Safely extract text from detail page."""
@@ -224,75 +247,7 @@ class ElEmpleoSpider(BaseJobSpider):
         except Exception:
             return ""
 
-    def _normalize_location(self, location: str, full_text: str = "") -> str:
-        """Normalize location to standard format.
-
-        Detects and categorizes:
-        - Remoto/Remote/Teletrabajo -> Remoto
-        - Híbrido/Hybrid -> Híbrido
-        - Otherwise extracts exact Colombian city
-
-        Args:
-            location: Raw location text from the page.
-            full_text: Full text to search for remote/hybrid keywords.
-
-        Returns:
-            Normalized location string.
-        """
-        combined = f"{location} {full_text}".lower()
-
-        if any(
-            word in combined
-            for word in ["remoto", "remote", "teletrabajo", "trabajo remoto", "from home"]
-        ):
-            return "Remoto"
-
-        if any(
-            word in combined
-            for word in ["híbrido", "hibrido", "híbrida", "hibrida", "hybrid", "mixto"]
-        ):
-            return "Híbrido"
-
-        colombian_cities = {
-            "bogota": "Bogotá",
-            "bogotá": "Bogotá",
-            "medellin": "Medellín",
-            "medellín": "Medellín",
-            "cali": "Cali",
-            "barranquilla": "Barranquilla",
-            "cartagena": "Cartagena",
-            "cucuta": "Cúcuta",
-            "bucaramanga": "Bucaramanga",
-            "pereira": "Pereira",
-            "manizales": "Manizales",
-            "ibague": "Ibagué",
-            "ibagué": "Ibagué",
-            "neiva": "Neiva",
-            "armenia": "Armenia",
-            "villavicencio": "Villavicencio",
-            "pasto": "Pasto",
-            "monteria": "Montería",
-            "sincelejo": "Sincelejo",
-            "popayan": "Popayán",
-            "tunja": "Tunja",
-            "florencia": "Florencia",
-            "quibdo": "Quibdó",
-            "riohacha": "Riohacha",
-            "santa marta": "Santa Marta",
-            "valledupar": "Valledupar",
-        }
-
-        location_lower = location.lower().strip()
-        for city_key, city_normalized in colombian_cities.items():
-            if city_key in location_lower:
-                return city_normalized
-
-        if location:
-            return location.title()
-
-        return "Colombia"
-
-    def _parse_job_card(self, card: Any, page_url: str) -> dict[str, Any]:
+    def _parse_job_card(self, card: Any, page_url: str) -> dict[str, Any] | None:
         """Parse a single job card element.
 
         Args:
@@ -317,9 +272,8 @@ class ElEmpleoSpider(BaseJobSpider):
                 if job_url:
                     break
 
-            # Clean and validate URL
-            if job_url and not job_url.startswith("http"):
-                job_url = f"https://www.elempleo.com{job_url}"
+            # Validate URL
+            job_url = self._validate_url(job_url)
 
             # Skip if no title or URL
             if not title or not job_url:
@@ -360,7 +314,7 @@ class ElEmpleoSpider(BaseJobSpider):
             self.logger.error(f"Error in _parse_job_card: {e}")
             return None
 
-    async def _handle_pagination(self, response: Response) -> Iterator[Any]:
+    async def _handle_pagination(self, response: Response) -> AsyncIterator[Any]:
         """Handle pagination for job listing pages.
 
         Args:
@@ -385,15 +339,13 @@ class ElEmpleoSpider(BaseJobSpider):
                     break
 
             if next_url:
-                # Ensure absolute URL
-                if not next_url.startswith("http"):
-                    next_url = f"https://www.elempleo.com{next_url}"
-
-                self.logger.info(f"Following pagination to: {next_url}")
+                next_url = self._validate_url(next_url)
+                if next_url:
+                    self.logger.info(f"Following pagination to: {next_url}")
 
                 from scrapling.spiders import Request
 
-                yield Request(next_url, callback=self.parse, sid="stealth")
+                yield Request(next_url, callback=self.parse, sid="stealth")  # type: ignore[arg-type]
 
         except Exception as e:
             self.logger.error(f"Error handling pagination: {e}")
@@ -413,48 +365,11 @@ class ElEmpleoSpider(BaseJobSpider):
         except Exception:
             self.search_term = "General"
 
-    def _safe_extract(self, element: Any, selector: str) -> str:
-        """Safely extract text from an element.
 
-        Args:
-            element: Selector object to extract from.
-            selector: CSS selector to use.
-
-        Returns:
-            Extracted and cleaned text, or empty string on error.
-        """
-        try:
-            text = element.css(selector).get("")
-            return self._clean_text(text) if text else ""
-        except Exception:
-            return ""
-
-    def _clean_text(self, text: str) -> str:
-        """Clean extracted text by removing extra whitespace and special characters.
-
-        Args:
-            text: Raw text to clean.
-
-        Returns:
-            Cleaned text.
-        """
-        if not text:
-            return ""
-
-        # Remove extra whitespace
-        text = " ".join(text.split())
-
-        # Remove common artifacts
-        text = text.replace("\n", " ").replace("\r", " ").replace("\t", " ")
-
-        # Remove leading/trailing punctuation that often appears
-        text = text.strip(".-—–_,;:")
-
-        return text.strip()
 
 
 # Convenience function for quick scraping
-def scrape_elempleo(max_pages: int = 3) -> list[dict[str, Any]]:
+def scrape_elempleo(max_pages: int = 5) -> list[dict[str, Any]]:
     """Scrape elempleo.com and return job listings.
 
     This is a convenience function for quick scraping without

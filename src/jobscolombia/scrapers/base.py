@@ -16,7 +16,7 @@ Key Features:
 import asyncio
 import random
 from abc import ABC, abstractmethod
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
 from typing import Any
 
 from scrapling.fetchers import AsyncStealthySession
@@ -28,6 +28,27 @@ from scrapling.spiders import (
 )
 
 from jobscolombia.config import ANTIDETECTION_CONFIG, PROXIES
+
+# HTTP status codes that indicate blocking or rate limiting
+BLOCKED_STATUS_CODES: frozenset[int] = frozenset({401, 403, 407, 429, 444, 500, 502, 503, 504})
+
+# Minimum response body length to consider valid (500 bytes)
+MIN_RESPONSE_LENGTH: int = 500
+
+# Keywords that indicate blocking when found in response body
+BLOCKED_KEYWORDS: tuple[str, ...] = (
+    "access denied",
+    "access to this page has been denied",
+    "rate limit",
+    "too many requests",
+    "captcha",
+    "blocked",
+    "forbidden",
+    "please verify you are human",
+    "cloudflare",
+    "attention required",
+    "sorry, you have been blocked",
+)
 
 
 class ProxyRotator:
@@ -67,7 +88,6 @@ class ProxyRotator:
         """
         if not self.proxies:
             return None
-        import random
 
         return random.choice(self.proxies)
 
@@ -124,7 +144,7 @@ class BaseJobSpider(Spider, ABC):
         """
         self.config = ANTIDETECTION_CONFIG
         self._random = random.Random()
-        self._proxy_rotator = ProxyRotator(PROXIES if PROXIES else [])
+        self._proxy_rotator = ProxyRotator(list(PROXIES) if PROXIES else [])
         super().__init__(*args, **kwargs)
 
     def configure_sessions(self, manager: SessionManager) -> None:
@@ -161,14 +181,6 @@ class BaseJobSpider(Spider, ABC):
             lazy=True,
         )
 
-    def get_proxy_for_request(self) -> str | None:
-        """Get a proxy for the next request.
-
-        Returns:
-            Proxy URL string, or None for direct connection.
-        """
-        return self._proxy_rotator.get_random_proxy()
-
     async def is_blocked(self, response: Response) -> bool:
         """Detect if a response indicates blocking or rate limiting.
 
@@ -182,8 +194,7 @@ class BaseJobSpider(Spider, ABC):
             True if the response indicates blocking, False otherwise.
         """
         # Check HTTP status codes commonly used for blocking
-        blocked_statuses = {401, 403, 407, 429, 444, 500, 502, 503, 504}
-        if response.status in blocked_statuses:
+        if response.status in BLOCKED_STATUS_CODES:
             self.logger.warning(
                 f"Blocked detected via status code: {response.status} for {response.url}"
             )
@@ -192,32 +203,19 @@ class BaseJobSpider(Spider, ABC):
         # Check response content for blocking indicators
         try:
             body = response.body.decode("utf-8", errors="ignore").lower()
-            blocked_keywords = [
-                "access denied",
-                "access to this page has been denied",
-                "rate limit",
-                "too many requests",
-                "captcha",
-                "blocked",
-                "forbidden",
-                "please verify you are human",
-                "cloudflare",
-                "attention required",
-                "sorry, you have been blocked",
-            ]
 
-            for keyword in blocked_keywords:
+            for keyword in BLOCKED_KEYWORDS:
                 if keyword in body:
                     self.logger.warning(
                         f"Blocked detected via keyword '{keyword}' for {response.url}"
                     )
                     return True
 
-        except Exception as e:
-            self.logger.error(f"Error checking response content: {e}")
+        except UnicodeDecodeError as e:
+            self.logger.error(f"Error decoding response content: {e}")
 
         # Check for very short responses (potential blocking page)
-        if len(response.body) < 500:
+        if len(response.body) < MIN_RESPONSE_LENGTH:
             self.logger.warning(
                 f"Unusually short response ({len(response.body)} bytes) from {response.url}"
             )
@@ -243,7 +241,8 @@ class BaseJobSpider(Spider, ABC):
         request.sid = "stealth"
 
         # Clear any existing proxy settings to get fresh connection
-        request.kwargs.pop("proxy", None)
+        if hasattr(request, "kwargs"):
+            request.kwargs.pop("proxy", None)  # type: ignore[attr-defined]
 
         # Add random delay before retry
         delay = self._random.uniform(
@@ -254,42 +253,6 @@ class BaseJobSpider(Spider, ABC):
         await asyncio.sleep(delay)
 
         return request
-
-    async def get_with_delay(self, url: str) -> Response:
-        """Fetch a URL with a random human-like delay.
-
-        This helper method adds randomness to request timing to avoid
-        creating predictable patterns that could trigger anti-bot systems.
-
-        Args:
-            url: URL to fetch.
-
-        Returns:
-            Response object from the fetch.
-        """
-        # Random delay between requests (3-8 seconds by default)
-        delay = self._random.uniform(
-            self.config.min_delay,
-            self.config.max_delay,
-        )
-
-        # Add some randomness to make it feel more human-like
-        if self._random.random() > 0.7:
-            delay *= self._random.uniform(0.8, 1.5)
-
-        self.logger.debug(f"Waiting {delay:.2f}s before request to {url}")
-        await asyncio.sleep(delay)
-
-        # Use stealth session for protected websites
-        async with AsyncStealthySession(
-            headless=self.config.headless,
-            block_webrtc=self.config.block_webrtc,
-            hide_canvas=self.config.hide_canvas,
-            solve_cloudflare=self.config.solve_cloudflare,
-            locale=self.config.locale,
-            timezone_id=self.config.timezone_id,
-        ) as session:
-            return await session.fetch(url)
 
     def get_selectors(self) -> dict[str, Any]:
         """Get CSS selectors for common job listing elements.
@@ -312,8 +275,113 @@ class BaseJobSpider(Spider, ABC):
             "pagination": ".pagination a, .pager a, a[rel='next'], .next",
         }
 
+    def _validate_url(self, url: str) -> str:
+        """Validate and sanitize a URL, preventing path traversal attacks.
+
+        Args:
+            url: URL to validate (can be relative or absolute).
+
+        Returns:
+            Validated URL or empty string if invalid.
+        """
+        if not url:
+            return ""
+
+        # Check for path traversal attempts
+        if ".." in url or url.startswith("/../"):
+            self.logger.warning(f"Blocked potential path traversal in URL: {url}")
+            return ""
+
+        # If it's already an absolute URL, validate it
+        if url.startswith("http"):
+            return url
+
+        # For relative URLs, prepend domain
+        if url.startswith("/"):
+            if self.allowed_domains:
+                return f"https://{list(self.allowed_domains)[0]}{url}"
+            return url
+
+        # If it doesn't start with / or http, treat as relative path
+        if self.allowed_domains:
+            return f"https://{list(self.allowed_domains)[0]}/{url}"
+        return url
+
+    def _clean_text(self, text: str) -> str:
+        """Clean extracted text by removing extra whitespace and special characters.
+
+        Args:
+            text: Raw text to clean.
+
+        Returns:
+            Cleaned text.
+        """
+        if not text:
+            return ""
+
+        text = " ".join(text.split())
+        text = text.replace("\n", " ").replace("\r", " ").replace("\t", " ")
+        text = text.strip(".-—–_,;:")
+
+        return text.strip()
+
+    def _normalize_location(self, location: str, full_text: str = "") -> str:
+        """Normalize location to standard format.
+
+        Detects and categorizes:
+        - Remoto/Remote/Teletrabajo -> Remoto
+        - Híbrido/Hybrid -> Híbrido
+        - Otherwise extracts exact Colombian city
+
+        Args:
+            location: Raw location text from the page.
+            full_text: Full text to search for remote/hybrid keywords.
+
+        Returns:
+            Normalized location string.
+        """
+        combined = f"{location} {full_text}".lower()
+
+        if any(
+            word in combined
+            for word in ["remoto", "remote", "teletrabajo", "trabajo remoto", "from home"]
+        ):
+            return "Remoto"
+
+        if any(
+            word in combined
+            for word in ["híbrido", "hibrido", "híbrida", "hibrida", "hybrid", "mixto"]
+        ):
+            return "Híbrido"
+
+        location_lower = location.lower().strip()
+        for city_key, city_normalized in COLOMBIAN_CITIES.items():
+            if city_key in location_lower:
+                return city_normalized
+
+        if location:
+            return location.title()
+
+        return "Colombia"
+
+    def _safe_extract(self, element: Any, selector: str) -> str:
+        """Safely extract text from an element.
+
+        Args:
+            element: Selector object to extract from.
+            selector: CSS selector to use.
+
+        Returns:
+            Extracted and cleaned text, or empty string on error.
+        """
+        try:
+            text = element.css(selector).get("")
+            return self._clean_text(text) if text else ""
+        except Exception:
+            return ""
+
     @abstractmethod
-    async def parse(self, response: Response) -> Iterator[dict[str, Any]]:
+    async def parse(self, response: Response) -> AsyncIterator[Any]:  # type: ignore[override]
         """Parse job listings from the response.
 
         This is an abstract method that must be implemented by subclasses.
@@ -330,7 +398,7 @@ class BaseJobSpider(Spider, ABC):
         """
         pass
 
-    async def start_requests(self) -> Iterator[Request]:
+    async def start_requests(self) -> AsyncIterator[Request]:  # type: ignore[override]
         """Generate initial requests for the spider.
 
         This method can be overridden to add custom logic for generating
@@ -340,46 +408,35 @@ class BaseJobSpider(Spider, ABC):
             Request objects for the start URLs.
         """
         for url in self.start_urls:
-            yield Request(url, callback=self.parse, sid="stealth")
+            yield Request(url, callback=self.parse, sid="stealth")  # type: ignore[arg-type]
 
 
-class JobSpiderMixin:
-    """Mixin class providing common job spider utilities.
+COLOMBIAN_CITIES: dict[str, str] = {
+    "bogota": "Bogotá",
+    "bogotá": "Bogotá",
+    "medellin": "Medellín",
+    "medellín": "Medellín",
+    "cali": "Cali",
+    "barranquilla": "Barranquilla",
+    "cartagena": "Cartagena",
+    "cucuta": "Cúcuta",
+    "bucaramanga": "Bucaramanga",
+    "pereira": "Pereira",
+    "manizales": "Manizales",
+    "ibague": "Ibagué",
+    "ibagué": "Ibagué",
+    "neiva": "Neiva",
+    "armenia": "Armenia",
+    "villavicencio": "Villavicencio",
+    "pasto": "Pasto",
+    "monteria": "Montería",
+    "sincelejo": "Sincelejo",
+    "popayan": "Popayán",
+    "tunja": "Tunja",
+    "florencia": "Florencia",
+    "quibdo": "Quibdó",
+    "riohacha": "Riohacha",
+    "santa marta": "Santa Marta",
+    "valledupar": "Valledupar",
+}
 
-    This mixin provides helper methods for parsing job listings
-    that can be shared across different spider implementations.
-    """
-
-    def parse_job_card(
-        self,
-        card: Any,
-        selectors: dict[str, str],
-    ) -> dict[str, Any]:
-        """Parse a single job card element.
-
-        Args:
-            card: Selector object representing a job card.
-            selectors: Dictionary of CSS selectors for job fields.
-
-        Returns:
-            Dictionary with parsed job information.
-        """
-        try:
-            job = {
-                "title": card.css(selectors.get("title", "h2::text")).get("").strip(),
-                "company": card.css(selectors.get("company", ".company::text")).get("").strip(),
-                "location": card.css(selectors.get("location", ".location::text")).get("").strip(),
-                "salary": card.css(selectors.get("salary", ".salary::text")).get("").strip(),
-                "date": card.css(selectors.get("date", ".date::text")).get("").strip(),
-                "url": card.css(selectors.get("url", "a::attr(href)")).get(""),
-            }
-
-            # Clean up URL if it's a relative path
-            if job["url"] and not job["url"].startswith("http"):
-                job["url"] = f"https://{self.allowed_domains[0]}{job['url']}"
-
-            return job
-
-        except Exception as e:
-            self.logger.error(f"Error parsing job card: {e}")
-            return {}

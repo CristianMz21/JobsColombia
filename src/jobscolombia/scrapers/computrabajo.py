@@ -9,7 +9,7 @@ Website: https://www.computrabajo.com.co
 
 import asyncio
 import random
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
 from typing import Any
 
 from scrapling.spiders import Response
@@ -47,7 +47,7 @@ class ComputrabajoSpider(BaseJobSpider):
     """
 
     name = "computrabajo"
-    allowed_domains = ["computrabajo.com.co", "www.computrabajo.com.co"]
+    allowed_domains = {"computrabajo.com.co", "www.computrabajo.com.co"}
 
     start_urls = [
         "https://www.computrabajo.com.co/trabajo-de-informatica",
@@ -85,7 +85,7 @@ class ComputrabajoSpider(BaseJobSpider):
         self.page_count = 0
         self.max_pages = 10
 
-    async def parse(self, response: Response) -> Iterator[dict[str, Any]]:
+    async def parse(self, response: Response) -> AsyncIterator[Any]:  # type: ignore[override]
         """Parse job listings from computrabajo.com.co response.
 
         This method ONLY collects job detail URLs and handles pagination.
@@ -131,15 +131,14 @@ class ComputrabajoSpider(BaseJobSpider):
                     if not job_url:
                         continue
 
-                    if job_url and not job_url.startswith("http"):
-                        if job_url.startswith("/"):
-                            job_url = f"https://www.computrabajo.com.co{job_url}"
-                        else:
-                            job_url = f"https://www.computrabajo.com.co/{job_url}"
+                    # Validate URL to prevent path traversal
+                    job_url = self._validate_url(job_url)
+                    if not job_url:
+                        continue
 
                     from scrapling.spiders import Request
 
-                    yield Request(job_url, callback=self.parse_detail, sid="stealth")
+                    yield Request(job_url, callback=self.parse_detail, sid="stealth")  # type: ignore[arg-type]
 
                 except Exception as e:
                     self.logger.error(f"Error extracting job URL: {e}")
@@ -154,7 +153,7 @@ class ComputrabajoSpider(BaseJobSpider):
         except Exception as e:
             self.logger.error(f"Error parsing response: {e}")
 
-    async def parse_detail(self, response: Response) -> Iterator[dict[str, Any]]:
+    async def parse_detail(self, response: Response) -> AsyncIterator[dict[str, Any]]:
         """Extract full job details from detail page.
 
         This method navigates to each job's detail page and extracts:
@@ -170,132 +169,86 @@ class ComputrabajoSpider(BaseJobSpider):
 
         try:
             title = self._safe_extract_detail(response, "h1::text, h2::text, .offer_tt::text")
-            company = self._safe_extract_detail(response, ".emp_bTitle::text, .company::text")
-            location = self._safe_extract_detail(response, ".emp_loc::text, .location::text")
-            salary = self._safe_extract_detail(
-                response, ".salary::text, .emp_salary::text, .fc_base::text"
-            )
-            date_posted = self._safe_extract_detail(response, ".date::text, .emp_date::text")
-
-            full_description = ""
-            desc_selectors = [
-                ".desc_text::text",
-                ".description::text",
-                ".job-details::text",
-                "[class*='descripcion']::text",
-                ".fc_mainText::text",
-            ]
-            for selector in desc_selectors:
-                desc_text = response.css(selector).get("")
-                if desc_text:
-                    full_description += desc_text + " "
-
-            full_description = self._clean_text(full_description.strip())
-
             if not title:
                 return
 
-            score = calcular_score(
-                titulo=title,
-                descripcion=full_description,
-                ubicacion=location or "",
-                empresa=company or "",
-            )
-
-            detected_techs = extract_technologies(full_description)
-
-            job = {
-                "site": "computrabajo",
-                "title": self._clean_text(title),
-                "company": self._clean_text(company) if company else "No especificado",
-                "location": self._normalize_location(location or "", full_description),
-                "salary": self._clean_text(salary) if salary else "",
-                "date_posted": self._clean_text(date_posted) if date_posted else "",
-                "job_url": response.url,
-                "score": score,
-                "clasificacion": clasificar_score(score),
-                "stack_principal": identificar_stack_principal(title + " " + full_description),
-                "search_term": self.search_term,
-                "description": "",
-                "full_description": full_description,
-                "detected_technologies": ", ".join(detected_techs),
-            }
-
-            if score > 0:
+            job_data = self._extract_job_fields(response, title)
+            if job_data["score"] > 0:
                 self.scraped_count += 1
-                self.logger.debug(f"Job '{title}' scored {score}")
-                yield job
+                self.logger.debug(f"Job '{title}' scored {job_data['score']}")
+                yield job_data
 
         except Exception as e:
             self.logger.error(f"Error parsing detail page: {e}")
 
-    def _normalize_location(self, location: str, full_text: str = "") -> str:
-        """Normalize location to standard format.
-
-        Detects and categorizes:
-        - Remoto/Remote/Teletrabajo -> Remoto
-        - Híbrido/Hybrid -> Híbrido
-        - Otherwise extracts exact Colombian city
+    def _extract_job_fields(
+        self, response: Response, title: str
+    ) -> dict[str, Any]:
+        """Extract all job fields from detail page.
 
         Args:
-            location: Raw location text from the page.
-            full_text: Full text to search for remote/hybrid keywords.
+            response: Response object from job detail page.
+            title: Already extracted job title.
 
         Returns:
-            Normalized location string.
+            Dictionary with all job fields including score.
         """
-        combined = f"{location} {full_text}".lower()
+        company = self._safe_extract_detail(response, ".emp_bTitle::text, .company::text")
+        location = self._safe_extract_detail(response, ".emp_loc::text, .location::text")
+        salary = self._safe_extract_detail(
+            response, ".salary::text, .emp_salary::text, .fc_base::text"
+        )
+        date_posted = self._safe_extract_detail(response, ".date::text, .emp_date::text")
+        full_description = self._extract_description(response)
 
-        if any(
-            word in combined
-            for word in ["remoto", "remote", "teletrabajo", "trabajo remoto", "from home"]
-        ):
-            return "Remoto"
+        score = calcular_score(
+            titulo=title,
+            descripcion=full_description,
+            ubicacion=location or "",
+            empresa=company or "",
+        )
+        detected_techs = extract_technologies(full_description)
 
-        if any(
-            word in combined
-            for word in ["híbrido", "hibrido", "híbrida", "hibrida", "hybrid", "mixto"]
-        ):
-            return "Híbrido"
-
-        colombian_cities = {
-            "bogota": "Bogotá",
-            "bogotá": "Bogotá",
-            "medellin": "Medellín",
-            "medellín": "Medellín",
-            "cali": "Cali",
-            "barranquilla": "Barranquilla",
-            "cartagena": "Cartagena",
-            "cucuta": "Cúcuta",
-            "bucaramanga": "Bucaramanga",
-            "pereira": "Pereira",
-            "manizales": "Manizales",
-            "ibague": "Ibagué",
-            "ibagué": "Ibagué",
-            "neiva": "Neiva",
-            "armenia": "Armenia",
-            "villavicencio": "Villavicencio",
-            "pasto": "Pasto",
-            "monteria": "Montería",
-            "sincelejo": "Sincelejo",
-            "popayan": "Popayán",
-            "tunja": "Tunja",
-            "florencia": "Florencia",
-            "quibdo": "Quibdó",
-            "riohacha": "Riohacha",
-            "santa marta": "Santa Marta",
-            "valledupar": "Valledupar",
+        return {
+            "site": "computrabajo",
+            "title": self._clean_text(title),
+            "company": self._clean_text(company) if company else "No especificado",
+            "location": self._normalize_location(location or "", full_description),
+            "salary": self._clean_text(salary) if salary else "",
+            "date_posted": self._clean_text(date_posted) if date_posted else "",
+            "job_url": response.url,
+            "score": score,
+            "clasificacion": clasificar_score(score),
+            "stack_principal": identificar_stack_principal(title + " " + full_description),
+            "search_term": self.search_term,
+            "description": "",
+            "full_description": full_description,
+            "detected_technologies": ", ".join(detected_techs),
         }
 
-        location_lower = location.lower().strip()
-        for city_key, city_normalized in colombian_cities.items():
-            if city_key in location_lower:
-                return city_normalized
+    def _extract_description(self, response: Response) -> str:
+        """Extract full description from job detail page.
 
-        if location:
-            return location.title()
+        Args:
+            response: Response object from job detail page.
 
-        return "Colombia"
+        Returns:
+            Cleaned full description text.
+        """
+        desc_parts: list[str] = []
+        desc_selectors = [
+            ".desc_text::text",
+            ".description::text",
+            ".job-details::text",
+            "[class*='descripcion']::text",
+            ".fc_mainText::text",
+        ]
+        for selector in desc_selectors:
+            desc_text = response.css(selector).get("")
+            if desc_text:
+                desc_parts.append(desc_text)
+
+        return self._clean_text(" ".join(desc_parts))
 
     def _safe_extract_detail(self, response: Response, selector: str) -> str:
         """Safely extract text from detail page."""
@@ -305,88 +258,7 @@ class ComputrabajoSpider(BaseJobSpider):
         except Exception:
             return ""
 
-    def _parse_job_card(self, card: Any, page_url: str) -> dict[str, Any] | None:
-        """Parse a single job card element.
-
-        Args:
-            card: Selector object for the job card.
-            page_url: URL of the page containing this card.
-
-        Returns:
-            Dictionary with parsed job information or None if parsing fails.
-        """
-        try:
-            title = self._safe_extract(card, "h2 a::text, h3 a::text, .fs16::text")
-            if not title:
-                title = self._safe_extract(card, ".offer_tt::text")
-
-            if not title:
-                return None
-
-            company = self._safe_extract(card, ".emp_bTitle::text")
-            if not company:
-                company = self._safe_extract(card, ".d_flex .dIB::text")
-
-            location = self._safe_extract(card, ".emp_loc::text")
-            if not location:
-                location = self._safe_extract(card, ".mrgt5::text")
-
-            salary = self._safe_extract(card, ".salary::text")
-            if not salary:
-                salary = self._safe_extract(card, ".fc_base::text")
-
-            date_posted = self._safe_extract(card, ".date::text")
-            if not date_posted:
-                date_posted = self._safe_extract(card, "[class*='date']::text")
-
-            job_url = ""
-            for selector in ["h2 a::attr(href)", "h3 a::attr(href)", "a.js_offer::attr(href)"]:
-                job_url = card.css(selector).get("")
-                if job_url:
-                    break
-
-            if not job_url:
-                return None
-
-            if job_url and not job_url.startswith("http"):
-                if job_url.startswith("/"):
-                    job_url = f"https://www.computrabajo.com.co{job_url}"
-                else:
-                    job_url = f"https://www.computrabajo.com.co/{job_url}"
-
-            score = calcular_score(
-                titulo=title,
-                descripcion="",
-                ubicacion=location or "",
-                empresa=company or "",
-            )
-
-            job = {
-                "site": "computrabajo",
-                "title": self._clean_text(title),
-                "company": self._clean_text(company) if company else "No especificado",
-                "location": self._clean_text(location) if location else "Colombia",
-                "salary": self._clean_text(salary) if salary else "",
-                "date_posted": self._clean_text(date_posted) if date_posted else "",
-                "job_url": job_url,
-                "score": score,
-                "clasificacion": clasificar_score(score),
-                "stack_principal": identificar_stack_principal(title),
-                "search_term": self.search_term,
-                "description": "",
-            }
-
-            if score > 0:
-                self.logger.debug(f"Job '{title}' scored {score}")
-                return job
-
-            return None
-
-        except Exception as e:
-            self.logger.error(f"Error in _parse_job_card: {e}")
-            return None
-
-    async def _handle_pagination(self, response: Response) -> Iterator[Any]:
+    async def _handle_pagination(self, response: Response) -> AsyncIterator[Any]:
         """Handle pagination for job listing pages.
 
         Computrabajo uses JavaScript-based pagination. This method tries
@@ -426,18 +298,14 @@ class ComputrabajoSpider(BaseJobSpider):
                     next_url = f"{current_url}{separator}page=2"
 
             if next_url:
-                if not next_url.startswith("http"):
-                    if next_url.startswith("/"):
-                        next_url = f"https://www.computrabajo.com.co{next_url}"
-                    else:
-                        next_url = f"https://www.computrabajo.com.co/{next_url}"
-
-                self.logger.info(f"Following pagination to: {next_url}")
+                next_url = self._validate_url(next_url)
+                if next_url:
+                    self.logger.info(f"Following pagination to: {next_url}")
 
                 from scrapling.spiders import Request
 
                 await asyncio.sleep(random.uniform(2, 5))
-                yield Request(next_url, callback=self.parse, sid="stealth")
+                yield Request(next_url, callback=self.parse, sid="stealth")  # type: ignore[arg-type]
 
         except Exception as e:
             self.logger.error(f"Error handling pagination: {e}")
@@ -460,39 +328,6 @@ class ComputrabajoSpider(BaseJobSpider):
         except Exception:
             self.search_term = "General"
 
-    def _safe_extract(self, element: Any, selector: str) -> str:
-        """Safely extract text from an element.
-
-        Args:
-            element: Selector object to extract from.
-            selector: CSS selector to use.
-
-        Returns:
-            Extracted and cleaned text, or empty string on error.
-        """
-        try:
-            text = element.css(selector).get("")
-            return self._clean_text(text) if text else ""
-        except Exception:
-            return ""
-
-    def _clean_text(self, text: str) -> str:
-        """Clean extracted text by removing extra whitespace and special characters.
-
-        Args:
-            text: Raw text to clean.
-
-        Returns:
-            Cleaned text.
-        """
-        if not text:
-            return ""
-
-        text = " ".join(text.split())
-        text = text.replace("\n", " ").replace("\r", " ").replace("\t", " ")
-        text = text.strip(".-—–_,;:")
-
-        return text.strip()
 
 
 def scrape_computrabajo(max_pages: int = 5) -> list[dict[str, Any]]:

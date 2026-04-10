@@ -9,7 +9,8 @@ Website: https://www.mitrabajo.co
 
 import asyncio
 import random
-from collections.abc import Iterator
+import re
+from collections.abc import AsyncIterator, Iterator
 from typing import Any
 
 from scrapling.spiders import Response
@@ -42,7 +43,7 @@ class MiTrabajoSpider(BaseJobSpider):
     """
 
     name = "mitrabajo"
-    allowed_domains = ["mitrabajo.co", "www.mitrabajo.co"]
+    allowed_domains = {"mitrabajo.co", "www.mitrabajo.co"}
 
     start_urls = [
         "https://www.mitrabajo.co/empleos-en-colombia/desarrollo-software",
@@ -79,7 +80,7 @@ class MiTrabajoSpider(BaseJobSpider):
         self.page_count = 0
         self.max_pages = 10
 
-    async def parse(self, response: Response) -> Iterator[dict[str, Any]]:
+    async def parse(self, response: Response) -> AsyncIterator[Any]:  # type: ignore[override]
         """Parse job listings from mitrabajo.co response.
 
         This method extracts job information from the page, applies
@@ -150,49 +151,22 @@ class MiTrabajoSpider(BaseJobSpider):
             Dictionary with parsed job information or None if parsing fails.
         """
         try:
-            title = self._safe_extract(card, "h2 a::text, h3 a::text, .job-title::text")
-            if not title:
-                title = self._safe_extract(card, ".title::text, .position::text")
-
+            title = self._extract_title(card)
             if not title:
                 return None
 
-            company = self._safe_extract(card, ".company-name::text")
-            if not company:
-                company = self._safe_extract(card, ".employer::text, .company::text")
-
-            location = self._safe_extract(card, ".location::text")
-            if not location:
-                location = self._safe_extract(card, ".city::text, .place::text")
-
-            salary = self._safe_extract(card, ".salary::text")
-            if not salary:
-                salary = self._safe_extract(card, ".wage::text, .compensation::text")
-
-            date_posted = self._safe_extract(card, ".date::text")
-            if not date_posted:
-                date_posted = self._safe_extract(card, ".posted::text, .time-ago::text")
-
-            job_url = ""
-            for selector in ["h2 a::attr(href)", "h3 a::attr(href)", ".job-title a::attr(href)"]:
-                job_url = card.css(selector).get("")
-                if job_url:
-                    break
-
-            if not job_url:
-                for href in card.css("a::attr(href)").getall():
-                    if "/empleo/" in href or "/job/" in href or "/oferta/" in href:
-                        job_url = href
-                        break
+            company = self._extract_company(card)
+            location = self._extract_location(card)
+            salary = self._extract_salary(card)
+            date_posted = self._extract_date(card)
+            job_url = self._extract_job_url(card)
 
             if not job_url:
                 return None
 
-            if job_url and not job_url.startswith("http"):
-                if job_url.startswith("/"):
-                    job_url = f"https://www.mitrabajo.co{job_url}"
-                else:
-                    job_url = f"https://www.mitrabajo.co/{job_url}"
+            job_url = self._validate_url(job_url)
+            if not job_url:
+                return None
 
             score = calcular_score(
                 titulo=title,
@@ -201,32 +175,92 @@ class MiTrabajoSpider(BaseJobSpider):
                 empresa=company or "",
             )
 
-            job = {
-                "site": "mitrabajo",
-                "title": self._clean_text(title),
-                "company": self._clean_text(company) if company else "No especificado",
-                "location": self._clean_text(location) if location else "Colombia",
-                "salary": self._clean_text(salary) if salary else "",
-                "date_posted": self._clean_text(date_posted) if date_posted else "",
-                "job_url": job_url,
-                "score": score,
-                "clasificacion": clasificar_score(score),
-                "stack_principal": identificar_stack_principal(title),
-                "search_term": self.search_term,
-                "description": "",
-            }
+            if score <= 0:
+                return None
 
-            if score > 0:
-                self.logger.debug(f"Job '{title}' scored {score}")
-                return job
-
-            return None
+            return self._build_job_dict(
+                title, company, location, salary, date_posted, job_url, score
+            )
 
         except Exception as e:
             self.logger.error(f"Error in _parse_job_card: {e}")
             return None
 
-    async def _handle_pagination(self, response: Response) -> Iterator[Any]:
+    def _extract_title(self, card: Any) -> str:
+        """Extract job title from card with fallbacks."""
+        title = self._safe_extract(card, "h2 a::text, h3 a::text, .job-title::text")
+        if not title:
+            title = self._safe_extract(card, ".title::text, .position::text")
+        return title
+
+    def _extract_company(self, card: Any) -> str:
+        """Extract company name from card."""
+        company = self._safe_extract(card, ".company-name::text")
+        if not company:
+            company = self._safe_extract(card, ".employer::text, .company::text")
+        return company
+
+    def _extract_location(self, card: Any) -> str:
+        """Extract location from card."""
+        location = self._safe_extract(card, ".location::text")
+        if not location:
+            location = self._safe_extract(card, ".city::text, .place::text")
+        return location
+
+    def _extract_salary(self, card: Any) -> str:
+        """Extract salary from card."""
+        salary = self._safe_extract(card, ".salary::text")
+        if not salary:
+            salary = self._safe_extract(card, ".wage::text, .compensation::text")
+        return salary
+
+    def _extract_date(self, card: Any) -> str:
+        """Extract posted date from card."""
+        date_posted = self._safe_extract(card, ".date::text")
+        if not date_posted:
+            date_posted = self._safe_extract(card, ".posted::text, .time-ago::text")
+        return date_posted
+
+    def _extract_job_url(self, card: Any) -> str:
+        """Extract job URL from card using multiple strategies."""
+        for selector in ["h2 a::attr(href)", "h3 a::attr(href)", ".job-title a::attr(href)"]:
+            job_url = card.css(selector).get("")
+            if job_url:
+                return job_url
+
+        for href in card.css("a::attr(href)").getall():
+            if "/empleo/" in href or "/job/" in href or "/oferta/" in href:
+                return href
+        return ""
+
+    def _build_job_dict(
+        self,
+        title: str,
+        company: str,
+        location: str,
+        salary: str,
+        date_posted: str,
+        job_url: str,
+        score: int,
+    ) -> dict[str, Any]:
+        """Build standardized job dictionary from extracted fields."""
+        self.logger.debug(f"Job '{title}' scored {score}")
+        return {
+            "site": "mitrabajo",
+            "title": self._clean_text(title),
+            "company": self._clean_text(company) if company else "No especificado",
+            "location": self._clean_text(location) if location else "Colombia",
+            "salary": self._clean_text(salary) if salary else "",
+            "date_posted": self._clean_text(date_posted) if date_posted else "",
+            "job_url": job_url,
+            "score": score,
+            "clasificacion": clasificar_score(score),
+            "stack_principal": identificar_stack_principal(title),
+            "search_term": self.search_term,
+            "description": "",
+        }
+
+    async def _handle_pagination(self, response: Response) -> AsyncIterator[Any]:
         """Handle pagination for job listing pages.
 
         MiTrabajo may use standard pagination or JavaScript-based navigation.
@@ -258,8 +292,6 @@ class MiTrabajoSpider(BaseJobSpider):
                 current_url = response.url
                 page_match = None
                 for pattern in [r"/pagina-(\d+)", r"/page=(\d+)", r"\?page=(\d+)"]:
-                    import re
-
                     match = re.search(pattern, current_url)
                     if match:
                         page_match = int(match.group(1))
@@ -277,19 +309,15 @@ class MiTrabajoSpider(BaseJobSpider):
                     next_url = f"{base_url}{separator}pagina-2"
 
             if next_url:
-                if not next_url.startswith("http"):
-                    if next_url.startswith("/"):
-                        next_url = f"https://www.mitrabajo.co{next_url}"
-                    else:
-                        next_url = f"https://www.mitrabajo.co/{next_url}"
-
-                self.logger.info(f"Following pagination to: {next_url}")
+                next_url = self._validate_url(next_url)
+                if next_url:
+                    self.logger.info(f"Following pagination to: {next_url}")
 
                 await asyncio.sleep(random.uniform(2, 5))
 
                 from scrapling.spiders import Request
 
-                yield Request(next_url, callback=self.parse, sid="stealth")
+                yield Request(next_url, callback=self.parse, sid="stealth")  # type: ignore[arg-type]
 
         except Exception as e:
             self.logger.error(f"Error handling pagination: {e}")
@@ -312,39 +340,6 @@ class MiTrabajoSpider(BaseJobSpider):
         except Exception:
             self.search_term = "General"
 
-    def _safe_extract(self, element: Any, selector: str) -> str:
-        """Safely extract text from an element.
-
-        Args:
-            element: Selector object to extract from.
-            selector: CSS selector to use.
-
-        Returns:
-            Extracted and cleaned text, or empty string on error.
-        """
-        try:
-            text = element.css(selector).get("")
-            return self._clean_text(text) if text else ""
-        except Exception:
-            return ""
-
-    def _clean_text(self, text: str) -> str:
-        """Clean extracted text by removing extra whitespace and special characters.
-
-        Args:
-            text: Raw text to clean.
-
-        Returns:
-            Cleaned text.
-        """
-        if not text:
-            return ""
-
-        text = " ".join(text.split())
-        text = text.replace("\n", " ").replace("\r", " ").replace("\t", " ")
-        text = text.strip(".-—–_,;:")
-
-        return text.strip()
 
 
 def scrape_mitrabajo(max_pages: int = 5) -> list[dict[str, Any]]:
