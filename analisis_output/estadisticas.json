@@ -1,0 +1,23 @@
+{
+  "total": 107,
+  "mean_score": 19.82,
+  "median_score": 20.0,
+  "stack_distribution": {
+    "Otro/Mixto": 63,
+    "C#/.NET": 19,
+    "Java/Spring": 13,
+    "Python/Django": 12
+  },
+  "portal_distribution": {
+    "linkedin": 71,
+    "computrabajo": 36
+  },
+  "clasificacion_distribution": {
+    "Excelente": 0,
+    "Buena": 6,
+    "Regular": 49,
+    "Descartada": 52
+  },
+  "top_technologies": {},
+  "remote_pct": 0.0
+}
