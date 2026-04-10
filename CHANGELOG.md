@@ -10,10 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.0] - 2026-03-19
 
 ### Changed
-- Refactored as a pure scoring/utility library (no scraping included)
-- Removed dependencies: jobspy, scrapling, nest_asyncio, requests
-- Minimum dependency: pandas only
-- Updated README to reflect library-only scope
+- Improved type annotations and mypy compliance
+- Updated GitHub Actions to latest versions (upload/download-artifact v7, codecov-action v5, setup-uv v7)
+- Removed empty env blocks from workflows
 
 ### Added
 - Comprehensive GitHub Actions workflows:
@@ -24,10 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Security audit (pip-audit, safety, bandit)
 - Dependabot configuration for automated dependency updates
 - SECURITY.md policy document
-
-### Removed
-- Web scraping functionality (moved to separate implementation)
-- Proxy utilities from core package
+- Full multi-portal scraping: LinkedIn, Indeed, elempleo.com, computrabajo.com, mitrabajo.co
 
 ## [0.1.0] - 2026-03-19
 

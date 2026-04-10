@@ -31,6 +31,47 @@ from jobscolombia.utils import generar_nombre_csv
 nest_asyncio.apply()
 
 
+def _enrich_jobspy_dataframe(df: pd.DataFrame, search_term: str) -> pd.DataFrame:
+    """Enrich DataFrame with computed columns.
+
+    Args:
+        df: Raw DataFrame from JobSpy.
+        search_term: Search term used for this batch.
+
+    Returns:
+        Enriched DataFrame with all scoring columns.
+    """
+    df = df.copy()
+    df["search_term"] = search_term
+    df["site"] = (
+        df["job_url"].str.lower().str.contains("linkedin").map({True: "linkedin", False: "indeed"})
+    )
+    df["full_description"] = df["description"].fillna("").astype(str)
+    df["detected_technologies"] = df["full_description"].apply(
+        lambda d: ", ".join(extract_technologies(d))
+    )
+    df["score"] = df.apply(
+        lambda r: calcular_score(
+            str(r.get("title", "")),
+            str(r.get("description", "")),
+            str(r.get("location", "")),
+            str(r.get("company", "")),
+        ),
+        axis=1,
+    )
+    df["stack_principal"] = df.apply(
+        lambda r: identificar_stack_principal(
+            f"{str(r.get('title', ''))} {str(r.get('description', ''))}"
+        ),
+        axis=1,
+    )
+    df["clasificacion"] = df["score"].apply(clasificar_score)
+    df["date_posted"] = df.get("date_posted", "")
+    df["salary"] = df.get("salary", "")
+    df["description"] = ""
+    return df
+
+
 def scrape_jobspy_jobs(results_wanted: int = 15, delay: float = 3.0) -> list[pd.DataFrame]:
     """Scrape jobs from LinkedIn and Indeed using JobSpy.
 
@@ -55,35 +96,7 @@ def scrape_jobspy_jobs(results_wanted: int = 15, delay: float = 3.0) -> list[pd.
             )
 
             if isinstance(df, pd.DataFrame) and not df.empty:
-                df["search_term"] = term
-                df["site"] = df["job_url"].apply(
-                    lambda url: "linkedin" if "linkedin" in str(url).lower() else "indeed"
-                )
-                df["full_description"] = df["description"].apply(
-                    lambda d: str(d) if pd.notna(d) else ""
-                )
-                df["detected_technologies"] = df["full_description"].apply(
-                    lambda d: ", ".join(extract_technologies(d))
-                )
-                df["score"] = df.apply(
-                    lambda r: calcular_score(
-                        str(r.get("title", "")),
-                        str(r.get("description", "")),
-                        str(r.get("location", "")),
-                        str(r.get("company", "")),
-                    ),
-                    axis=1,
-                )
-                df["stack_principal"] = df.apply(
-                    lambda r: identificar_stack_principal(
-                        f"{str(r.get('title', ''))} {str(r.get('description', ''))}"
-                    ),
-                    axis=1,
-                )
-                df["clasificacion"] = df["score"].apply(clasificar_score)
-                df["date_posted"] = df.get("date_posted", "")
-                df["salary"] = df.get("salary", "")
-                df["description"] = ""
+                df = _enrich_jobspy_dataframe(df, term)
                 all_jobs.append(df)
                 logger.info(f"{len(df)} resultados extraídos de LinkedIn/Indeed para '{term}'")
             else:
@@ -179,7 +192,7 @@ def scrape_all_jobs_async(max_pages: int = 3) -> pd.DataFrame | None:
     if "title" in combined.columns and "company" in combined.columns:
         combined["clave_deduplicacion"] = (
             combined["title"].str.lower().str.strip().str.replace(r"\s+", " ", regex=True)
-            + "|"
+            + "|||"
             + combined["company"].str.lower().str.strip().str.replace(r"\s+", " ", regex=True)
         )
         combined = combined.drop_duplicates(subset=["clave_deduplicacion"], keep="first")

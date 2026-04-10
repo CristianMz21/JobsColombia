@@ -44,9 +44,7 @@ jobs:
         run: uv run ruff check --select=I .
 
       - name: Check for missing type hints
-        run: |
-          uv run ruff check . --select=ANN --ignore=ANN401 || true
-        continue-on-error: true
+        run: uv run ruff check . --select=ANN --ignore=ANN401
 
   commit-lint:
     name: Conventional Commits

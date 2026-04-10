@@ -12,6 +12,10 @@ import logging
 import os
 from logging.handlers import RotatingFileHandler
 
+# Logging configuration constants
+MAX_LOG_FILE_SIZE: int = 10 * 1024 * 1024  # 10MB per log file
+LOG_BACKUP_COUNT: int = 5
+
 
 def setup_logger(name: str = "techjobs") -> logging.Logger:
     """Create and configure a logger with console and file handlers.
@@ -45,8 +49,8 @@ def setup_logger(name: str = "techjobs") -> logging.Logger:
     log_file = os.path.join(log_dir, "scraper.log")
     file_handler = RotatingFileHandler(
         log_file,
-        maxBytes=10 * 1024 * 1024,
-        backupCount=5,
+        maxBytes=MAX_LOG_FILE_SIZE,
+        backupCount=LOG_BACKUP_COUNT,
         encoding="utf-8",
     )
     file_handler.setLevel(logging.DEBUG)

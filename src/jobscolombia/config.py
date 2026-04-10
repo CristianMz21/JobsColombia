@@ -6,10 +6,31 @@ This module centralizes all configuration settings including:
 - Scoring weights for job relevance
 - Anti-detection settings
 - Rate limiting parameters
+
+Configuration can be overridden via environment variables:
+- ANTIDETECTION_MIN_DELAY: Minimum delay between requests (float)
+- ANTIDETECTION_MAX_DELAY: Maximum delay between requests (float)
+- ANTIDETECTION_TIMEOUT: Request timeout in seconds (int)
+- ANTIDETECTION_MAX_RETRIES: Maximum retry attempts (int)
+- PROXIES: Comma-separated list of proxy URLs
 """
 
+import os
 from dataclasses import dataclass, field
 from typing import Final
+
+# ==============================================================================
+# ENVIRONMENT VARIABLE DEFAULTS
+# ==============================================================================
+
+_PROXY_ENV: Final[str] = os.getenv("PROXIES", "")
+PROXIES: Final[tuple[str, ...]] = (
+    tuple(p.strip() for p in _PROXY_ENV.split(",") if p.strip()) if _PROXY_ENV else ()
+)
+
+# ==============================================================================
+# USER AGENTS
+# ==============================================================================
 
 USER_AGENTS: Final[list[str]] = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
@@ -54,12 +75,6 @@ BLACKLIST_COMPANIES: Final[list[str]] = [
     "crossover",
     "topcoder",
 ]
-
-# ==============================================================================
-# PROXY CONFIGURATION
-# ==============================================================================
-
-PROXIES: list[str] = []
 
 
 # ==============================================================================
@@ -265,6 +280,22 @@ SCORING_CONFIG: Final[ScoringConfig] = ScoringConfig()
 # ==============================================================================
 
 
+def _get_env_float(key: str, default: float) -> float:
+    """Get float from environment variable."""
+    try:
+        return float(os.getenv(key, default))
+    except (ValueError, TypeError):
+        return default
+
+
+def _get_env_int(key: str, default: int) -> int:
+    """Get int from environment variable."""
+    try:
+        return int(os.getenv(key, default))
+    except (ValueError, TypeError):
+        return default
+
+
 @dataclass
 class AntiDetectionConfig:
     """Configuration for anti-detection measures.
@@ -292,7 +323,25 @@ class AntiDetectionConfig:
     timezone_id: str = "America/Bogota"
 
 
-ANTIDETECTION_CONFIG: Final[AntiDetectionConfig] = AntiDetectionConfig()
+# Load from environment variables
+_antidetection_config = AntiDetectionConfig(
+    min_delay=_get_env_float("ANTIDETECTION_MIN_DELAY", 4.0),
+    max_delay=_get_env_float("ANTIDETECTION_MAX_DELAY", 8.0),
+    timeout=_get_env_int("ANTIDETECTION_TIMEOUT", 30),
+    max_retries=_get_env_int("ANTIDETECTION_MAX_RETRIES", 3),
+)
+
+# Override defaults with environment values if provided
+if os.getenv("ANTIDETECTION_MIN_DELAY"):
+    _antidetection_config.min_delay = _get_env_float("ANTIDETECTION_MIN_DELAY", 4.0)
+if os.getenv("ANTIDETECTION_MAX_DELAY"):
+    _antidetection_config.max_delay = _get_env_float("ANTIDETECTION_MAX_DELAY", 8.0)
+if os.getenv("ANTIDETECTION_TIMEOUT"):
+    _antidetection_config.timeout = _get_env_int("ANTIDETECTION_TIMEOUT", 30)
+if os.getenv("ANTIDETECTION_MAX_RETRIES"):
+    _antidetection_config.max_retries = _get_env_int("ANTIDETECTION_MAX_RETRIES", 3)
+
+ANTIDETECTION_CONFIG: Final[AntiDetectionConfig] = _antidetection_config
 
 
 # ==============================================================================

@@ -27,6 +27,11 @@ classifiers = [
 ]
 dependencies = [
     "pandas",
+    "scrapling",
+    "jobspy",
+    "nest_asyncio",
+    "curl_cffi",
+    "playwright",
 ]
 
 [project.optional-dependencies]
@@ -34,9 +39,11 @@ dev = [
     "ruff",
     "pytest",
     "pytest-cov",
+    "pytest-asyncio",
     "mypy",
     "bandit",
     "safety",
+    "pytest-httpx",
 ]
 
 [project.urls]

@@ -9,10 +9,16 @@ This module provides the logic for calculating job relevance scores based on:
 - Dynamic technology extraction from job descriptions
 """
 
+import logging
 import re
 from typing import Any, Final
 
 from jobscolombia.config import BLACKLIST_COMPANIES, SCORING_CONFIG
+
+logger = logging.getLogger(__name__)
+
+# Pre-computed set for O(1) blacklist lookup
+_BLACKLIST_SET: Final[frozenset[str]] = frozenset(c.lower() for c in BLACKLIST_COMPANIES)
 
 TECHNOLOGIES: Final[list[tuple[str, re.Pattern[str]]]] = [
     (tech, re.compile(rf"\b{re.escape(tech)}\b", re.IGNORECASE))
@@ -219,7 +225,7 @@ def calcular_score(
     try:
         if empresa:
             empresa_lower = empresa.lower().strip()
-            if empresa_lower in [c.lower() for c in BLACKLIST_COMPANIES]:
+            if empresa_lower in _BLACKLIST_SET:
                 return 0
 
         # Combine all text for analysis (case-insensitive)
@@ -254,9 +260,8 @@ def calcular_score(
         # Step 7: Clamp score to valid range [0, 100]
         return max(0, min(score, SCORING_CONFIG.max_score))
 
-    except Exception as e:
-        # Log error but return 0 to avoid breaking the scraping pipeline
-        print(f"Error calculating score: {e}")
+    except (TypeError, KeyError, AttributeError) as e:
+        logger.error(f"Error calculating score: {e}")
         return 0
 
 
@@ -287,8 +292,8 @@ def clasificar_score(score: int) -> str:
         if score >= SCORING_CONFIG.min_score:
             return "Regular"
         return "Descartada"
-    except Exception as e:
-        print(f"Error classifying score: {e}")
+    except TypeError as e:
+        logger.error(f"Error classifying score (invalid type): {e}")
         return "Descartada"
 
 
@@ -316,6 +321,7 @@ def identificar_stack_principal(texto: str) -> str:
         'Java/Spring'
     """
     try:
+        # Convert to string to handle None and normalize case
         texto = str(texto).lower()
 
         # Priority order: Check most specific technologies first
@@ -341,8 +347,8 @@ def identificar_stack_principal(texto: str) -> str:
         # No specific stack detected
         return "Otro/Mixto"
 
-    except Exception as e:
-        print(f"Error identifying stack: {e}")
+    except (TypeError, AttributeError) as e:
+        logger.error(f"Error identifying stack: {e}")
         return "Otro/Mixto"
 
 
@@ -350,6 +356,7 @@ def calcular_score_detallado(
     titulo: str,
     descripcion: str = "",
     ubicacion: str = "",
+    empresa: str = "",
 ) -> dict[str, Any]:
     """Calculate detailed score breakdown for debugging and analysis.
 
@@ -360,6 +367,7 @@ def calcular_score_detallado(
         titulo: Job title text.
         descripcion: Job description text (optional).
         ubicacion: Job location text (optional).
+        empresa: Company name for blacklist check (optional).
 
     Returns:
         Dictionary containing:
@@ -379,7 +387,7 @@ def calcular_score_detallado(
     try:
         texto = f"{titulo} {descripcion} {ubicacion}".lower()
 
-        result = {
+        result: dict[str, Any] = {
             "total_score": 0,
             "clasificacion": "Descartada",
             "stack": "Otro/Mixto",
@@ -393,6 +401,13 @@ def calcular_score_detallado(
         if any(exc in texto for exc in SCORING_CONFIG.exclusion_words):
             result["excluded"] = True
             return result
+
+        # Check blacklist
+        if empresa:
+            empresa_lower = empresa.lower().strip()
+            if empresa_lower in _BLACKLIST_SET:
+                result["excluded"] = True
+                return result
 
         # Check required words
         if not any(req in texto for req in SCORING_CONFIG.required_words):
@@ -434,8 +449,8 @@ def calcular_score_detallado(
 
         return result
 
-    except Exception as e:
-        print(f"Error in detailed scoring: {e}")
+    except (TypeError, KeyError, AttributeError) as e:
+        logger.error(f"Error in detailed scoring: {e}")
         return {
             "total_score": 0,
             "clasificacion": "Descartada",
