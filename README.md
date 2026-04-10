@@ -258,16 +258,6 @@ This project is built with and powered by the following open-source technologies
 - [**Codecov**](https://codecov.io/) — Code coverage tracking and reporting
 - [**PyPI**](https://pypi.org/) — Package index for distribution
 
-### Colombian Job Portals
-
-This library scrapes the following job portals (with their respective spiders):
-
-- [**elempleo.com**](https://www.elempleo.com) — Colombia's leading job portal
-- [**computrabajo.com.co**](https://www.computrabajo.com.co) — Popular job site with broad coverage
-- [**mitrabajo.co**](https://www.mitrabajo.co) — Growing Colombian job platform
-- [**LinkedIn**](https://linkedin.com) — Global professional network (via Scrapling)
-- [**Indeed**](https://indeed.com) — Major job search aggregator (via Scrapling)
-
 ### Inspiration
 
 The scoring and classification system was inspired by job search tools like **Jobscan**, **Resume Worded**, and various tech career platforms that help professionals prioritize relevant opportunities.
